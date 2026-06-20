@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pip-sql-server
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrongPassword123!"
+      MSSQL_PID: "Express"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    networks:
+      - pip-network
+
+  redis:
+    image: redis:alpine
+    container_name: pip-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - pip-network
+
+  service-bus:
+    image: azure-service-bus-emulator:latest
+    container_name: pip-service-bus
+    ports:
+      - "5672:5672"
+      - "5671:5671"
+    environment:
+      - AZURE_SERVICE_BUS_EMULATOR_ENABLE_AUTH=false
+    networks:
+      - pip-network
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: pip-azurite
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    networks:
+      - pip-network
+
+  cosmos-emulator:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    container_name: pip-cosmos
+    ports:
+      - "8081:8081"
+    environment:
+      - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=3
+      - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
+    networks:
+      - pip-network
+
+  property-service:
+    build:
+      context: ./src/PropertyService
+      dockerfile: Dockerfile
+    container_name: pip-property-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=PropertyDb;User=sa;Password=YourStrongPassword123!;TrustServerCertificate=true
+      - ConnectionStrings__ServiceBus=Endpoint=sb://service-bus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test;UseDevelopmentEmulator=true
+    ports:
+      - "5001:8080"
+    depends_on:
+      - sql-server
+      - service-bus
+    networks:
+      - pip-network
+
+  inspection-service:
+    build:
+      context: ./src/InspectionService
+      dockerfile: Dockerfile
+    container_name: pip-inspection-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=InspectionDb;User=sa;Password=YourStrongPassword123!;TrustServerCertificate=true
+      - ConnectionStrings__ServiceBus=Endpoint=sb://service-bus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test;UseDevelopmentEmulator=true
+      - ConnectionStrings__BlobStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+    ports:
+      - "5002:8080"
+    depends_on:
+      - sql-server
+      - service-bus
+      - azurite
+    networks:
+      - pip-network
+
+  risk-scoring-service:
+    build:
+      context: ./src/RiskScoringService
+      dockerfile: Dockerfile
+    container_name: pip-risk-scoring
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_BUS_CONNECTION=Endpoint=sb://service-bus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test;UseDevelopmentEmulator=true
+      - COSMOS_DB_CONNECTION=AccountEndpoint=http://cosmos-emulator:8081;AccountKey=C2y6yDjf5/R+ob0N8A7Cgvq1k14ltJt+4sM5vVxA9z2/4Y9p3t5e4k5O6n7P8q9R0s1T2u3V4w5X6y7Z8A9B0C1D2E3F4G5H6I7J8K9L0M1N2O3P4Q5R6S7T8U9V0W1X2Y3Z4=
+      - COSMOS_DB_NAME=RiskScoringDb
+      - COSMOS_CONTAINER_NAME=RiskScores
+      - INSPECTION_SERVICE_URL=http://inspection-service:8080
+      - PROPERTY_SERVICE_URL=http://property-service:8080
+    ports:
+      - "5003:8000"
+    depends_on:
+      - service-bus
+      - cosmos-emulator
+      - inspection-service
+      - property-service
+    networks:
+      - pip-network
+
+  document-service:
+    build:
+      context: ./src/DocumentService
+      dockerfile: Dockerfile
+    container_name: pip-document-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql-server;Database=DocumentDb;User=sa;Password=YourStrongPassword123!;TrustServerCertificate=true
+      - ConnectionStrings__ServiceBus=Endpoint=sb://service-bus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test;UseDevelopmentEmulator=true
+      - ConnectionStrings__BlobStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+    ports:
+      - "5004:8080"
+    depends_on:
+      - sql-server
+      - service-bus
+      - azurite
+    networks:
+      - pip-network
+
+  notification-service:
+    build:
+      context: ./src/NotificationService
+      dockerfile: Dockerfile
+    container_name: pip-notification-service
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_BUS_CONNECTION=Endpoint=sb://service-bus;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=test;UseDevelopmentEmulator=true
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USERNAME=test@gmail.com
+      - SMTP_PASSWORD=test123
+    ports:
+      - "5005:8000"
+    depends_on:
+      - service-bus
+    networks:
+      - pip-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pip-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - pip-network
+
+networks:
+  pip-network:
+    driver: bridge
+
+volumes:
+  sql-data:
+  grafana-data:

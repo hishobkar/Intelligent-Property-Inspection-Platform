@@ -1,0 +1,25 @@
+using InspectionService.Domain.Interfaces;
+using InspectionService.Infrastructure.Data;
+
+namespace InspectionService.Infrastructure.Repositories
+{
+    public class UnitOfWork : IUnitOfWork
+    {
+        private readonly InspectionDbContext _context;
+
+        public UnitOfWork(InspectionDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public void Dispose()
+        {
+            _context.Dispose();
+        }
+    }
+}

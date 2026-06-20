@@ -1,0 +1,196 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  AKS_NAME: ${{ secrets.AKS_NAME }}
+  RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        service: [property-service, inspection-service, document-service]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Restore dependencies
+      run: |
+        cd src/${{ matrix.service }}
+        if [ -f "*.csproj" ]; then
+          dotnet restore
+        elif [ -f "requirements.txt" ]; then
+          pip install -r requirements.txt
+        fi
+    
+    - name: Build
+      run: |
+        cd src/${{ matrix.service }}
+        if [ -f "*.csproj" ]; then
+          dotnet build --configuration Release --no-restore
+        fi
+    
+    - name: Test
+      run: |
+        cd src/${{ matrix.service }}
+        if [ -f "*.csproj" ]; then
+          dotnet test --configuration Release --no-build --verbosity normal
+        elif [ -f "requirements.txt" ]; then
+          pip install pytest pytest-cov
+          pytest --cov=./ --cov-report=xml
+        fi
+    
+    - name: Docker Build
+      run: |
+        cd src/${{ matrix.service }}
+        docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }} .
+        docker tag ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }} ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:latest
+
+    - name: Docker Push
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
+        docker push ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
+        docker push ${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:latest
+
+  risk-scoring-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd src/RiskScoringService
+        pip install -r requirements.txt
+    
+    - name: Test
+      run: |
+        cd src/RiskScoringService
+        pip install pytest pytest-cov
+        pytest --cov=./ --cov-report=xml
+    
+    - name: Docker Build
+      run: |
+        cd src/RiskScoringService
+        docker build -t ${{ env.ACR_NAME }}.azurecr.io/risk-scoring-service:${{ github.sha }} .
+        docker tag ${{ env.ACR_NAME }}.azurecr.io/risk-scoring-service:${{ github.sha }} ${{ env.ACR_NAME }}.azurecr.io/risk-scoring-service:latest
+
+    - name: Docker Push
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: |
+        echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ env.ACR_NAME }}.azurecr.io -u ${{ secrets.ACR_USERNAME }} --password-stdin
+        docker push ${{ env.ACR_NAME }}.azurecr.io/risk-scoring-service:${{ github.sha }}
+        docker push ${{ env.ACR_NAME }}.azurecr.io/risk-scoring-service:latest
+
+  deploy:
+    needs: [build-and-test, risk-scoring-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Set AKS Context
+      run: |
+        az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_NAME }}
+    
+    - name: Create Namespace
+      run: kubectl create namespace pip --dry-run=client -o yaml | kubectl apply -f -
+    
+    - name: Create Secrets
+      run: |
+        kubectl create secret generic acr-secret \
+          --namespace pip \
+          --from-literal=.dockerconfigjson=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" -o tsv) \
+          --type=kubernetes.io/dockerconfigjson \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic sql-database \
+          --namespace pip \
+          --from-literal=connectionString="${{ secrets.SQL_CONNECTION_STRING }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic service-bus \
+          --namespace pip \
+          --from-literal=connectionString="${{ secrets.SERVICE_BUS_CONNECTION }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic cosmos-db \
+          --namespace pip \
+          --from-literal=connectionString="${{ secrets.COSMOS_DB_CONNECTION }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic blob-storage \
+          --namespace pip \
+          --from-literal=connectionString="${{ secrets.BLOB_STORAGE_CONNECTION }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+        
+        kubectl create secret generic app-insights \
+          --namespace pip \
+          --from-literal=connectionString="${{ secrets.APP_INSIGHTS_CONNECTION }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+    
+    - name: Deploy Helm Charts
+      run: |
+        for service in property-service inspection-service document-service risk-scoring-service notification-service; do
+          helm upgrade --install $service charts/$service \
+            --namespace pip \
+            --set image.repository=${{ env.ACR_NAME }}.azurecr.io/$service \
+            --set image.tag=${{ github.sha }}
+        done
+    
+    - name: Verify Deployment
+      run: |
+        kubectl rollout status deployment/property-service -n pip --timeout=5m
+        kubectl rollout status deployment/inspection-service -n pip --timeout=5m
+        kubectl rollout status deployment/document-service -n pip --timeout=5m
+        kubectl rollout status deployment/risk-scoring-service -n pip --timeout=5m
+        kubectl rollout status deployment/notification-service -n pip --timeout=5m
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'

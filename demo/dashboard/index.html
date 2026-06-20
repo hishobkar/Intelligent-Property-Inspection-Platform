@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Intelligent Property Inspection Platform — Demo Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-50); color: var(--gray-800); }
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p { font-size: 0.85rem; opacity: 0.85; }
+    .badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; }
+
+    nav {
+      background: white;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      gap: 4px;
+      padding: 0 32px;
+    }
+    nav button {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #6b7280;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    nav button.active, nav button:hover {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    main { padding: 32px; max-width: 1200px; margin: 0 auto; }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .service-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--gray-200);
+      text-align: center;
+      transition: box-shadow 0.2s;
+    }
+    .service-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .service-card .icon { font-size: 2rem; margin-bottom: 8px; }
+    .service-card h3 { font-size: 0.9rem; font-weight: 600; color: var(--gray-800); margin-bottom: 4px; }
+    .service-card .url { font-size: 0.75rem; color: #6b7280; }
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+    .status-dot.healthy { background: var(--success); }
+    .status-dot.unknown { background: #9ca3af; }
+    .status-dot.error { background: var(--danger); }
+
+    .section-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .card-header {
+      padding: 16px 20px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-body { padding: 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th { background: var(--gray-50); text-align: left; padding: 10px 14px; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+    td { padding: 12px 14px; border-top: 1px solid var(--gray-100); }
+    tr:hover td { background: var(--gray-50); }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+
+    .risk-badge { padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .risk-low { background: #d1fae5; color: #065f46; }
+    .risk-medium { background: #fef3c7; color: #92400e; }
+    .risk-high { background: #fee2e2; color: #991b1b; }
+    .risk-critical { background: #7f1d1d; color: white; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--gray-800); }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+    }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-error { background: #fee2e2; color: #991b1b; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    pre {
+      background: var(--gray-900);
+      color: #86efac;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      max-height: 300px;
+    }
+
+    .loading { opacity: 0.6; font-style: italic; }
+    .empty-state { text-align: center; padding: 40px; color: #9ca3af; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>🏢</div>
+  <div>
+    <h1>Intelligent Property Inspection Platform</h1>
+    <p>Enterprise-grade microservices demo &nbsp;<span class="badge">v1.0.0</span></p>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showTab('overview')">Overview</button>
+  <button onclick="showTab('properties')">Properties</button>
+  <button onclick="showTab('inspections')">Inspections</button>
+  <button onclick="showTab('risk')">Risk Scoring</button>
+  <button onclick="showTab('documents')">Documents</button>
+  <button onclick="showTab('notifications')">Notifications</button>
+  <button onclick="showTab('swagger')">API Docs</button>
+</nav>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="section-title">🏗 Platform Services</div>
+    <div class="services-grid" id="services-grid">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="card">
+      <div class="card-header">📊 Quick Stats</div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;text-align:center">
+          <div>
+            <div style="font-size:2rem;font-weight:700;color:var(--primary)" id="stat-properties">—</div>
+            <div style="font-size:0.8rem;color:#6b7280">Properties</div>
+          </div>
+          <div>
+            <div style="font-size:2rem;font-weight:700;color:var(--success)" id="stat-inspections">—</div>
+            <div style="font-size:0.8rem;color:#6b7280">Inspections</div>
+          </div>
+          <div>
+            <div style="font-size:2rem;font-weight:700;color:var(--warning)" id="stat-riskscores">—</div>
+            <div style="font-size:0.8rem;color:#6b7280">Risk Scores</div>
+          </div>
+          <div>
+            <div style="font-size:2rem;font-weight:700;color:#7c3aed" id="stat-notifications">—</div>
+            <div style="font-size:0.8rem;color:#6b7280">Notifications</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">ℹ Architecture</div>
+      <div class="card-body" style="font-size:0.875rem;line-height:1.7;color:#4b5563">
+        <p><strong>Event-Driven Microservices</strong> — Five independent services communicate asynchronously.</p>
+        <ul style="margin:12px 0 0 20px">
+          <li><strong>Property Service</strong> (ASP.NET Core 9, CQRS+MediatR) — CRUD for property records</li>
+          <li><strong>Inspection Service</strong> (ASP.NET Core 9 Minimal API) — Schedules and completes inspections</li>
+          <li><strong>Risk Scoring Service</strong> (Python FastAPI) — Multi-factor weighted risk engine</li>
+          <li><strong>Document Service</strong> (ASP.NET Core 9) — Generates compliance and inspection reports</li>
+          <li><strong>Notification Service</strong> (Python FastAPI) — Multi-channel event-driven notifications</li>
+        </ul>
+        <p style="margin-top:12px">All services expose OpenAPI/Swagger documentation and health endpoints. SQLite is used for this demo; SQL Server / CosmosDB in production.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROPERTIES -->
+  <div id="tab-properties" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="section-title">🏠 Properties</div>
+      <button class="btn btn-primary" onclick="showCreatePropertyForm()">+ Add Property</button>
+    </div>
+
+    <div id="create-property-form" class="card" style="display:none;margin-bottom:24px">
+      <div class="card-header">Create New Property</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Address</label>
+            <input id="prop-address" type="text" placeholder="123 Main Street" />
+          </div>
+          <div class="form-group">
+            <label>City</label>
+            <input id="prop-city" type="text" placeholder="New York" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>State</label>
+            <input id="prop-state" type="text" placeholder="NY" />
+          </div>
+          <div class="form-group">
+            <label>Postal Code</label>
+            <input id="prop-postal" type="text" placeholder="10001" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Country</label>
+            <input id="prop-country" type="text" value="USA" />
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="prop-type">
+              <option value="0">Residential</option>
+              <option value="1">Commercial</option>
+              <option value="2">Industrial</option>
+              <option value="3">Land</option>
+              <option value="4">Mixed Use</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Year Built</label>
+            <input id="prop-year" type="number" value="2000" />
+          </div>
+          <div class="form-group">
+            <label>Square Footage</label>
+            <input id="prop-sqft" type="number" value="1500" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Estimated Value ($)</label>
+            <input id="prop-value" type="number" value="500000" />
+          </div>
+          <div class="form-group">
+            <label>Owner ID</label>
+            <input id="prop-owner" type="text" value="owner-001" />
+          </div>
+        </div>
+        <div id="prop-alert"></div>
+        <button class="btn btn-primary" onclick="createProperty()">Create Property</button>
+        <button class="btn" style="margin-left:8px;background:var(--gray-100)" onclick="hideCreatePropertyForm()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Property List
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="loadProperties()">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="properties-table">
+          <div class="empty-state loading">Loading properties…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSPECTIONS -->
+  <div id="tab-inspections" class="tab-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="section-title">🔍 Inspections</div>
+      <button class="btn btn-primary" onclick="showCreateInspectionForm()">+ Schedule Inspection</button>
+    </div>
+
+    <div id="create-inspection-form" class="card" style="display:none;margin-bottom:24px">
+      <div class="card-header">Schedule Inspection</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Property ID</label>
+            <input id="insp-property-id" type="text" placeholder="11111111-1111-1111-1111-111111111111" />
+          </div>
+          <div class="form-group">
+            <label>Property Reference</label>
+            <input id="insp-prop-ref" type="text" placeholder="PROP-20260101-DEMO0001" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Inspector Name</label>
+            <input id="insp-inspector-name" type="text" value="John Smith" />
+          </div>
+          <div class="form-group">
+            <label>Inspector ID</label>
+            <input id="insp-inspector-id" type="text" value="inspector-001" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type</label>
+            <select id="insp-type">
+              <option value="0">Routine</option>
+              <option value="1">Pre-Purchase</option>
+              <option value="2">Annual</option>
+              <option value="3">Insurance</option>
+              <option value="4">Compliance</option>
+              <option value="5">Emergency</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="insp-priority">
+              <option value="0">Low</option>
+              <option value="1">Medium</option>
+              <option value="2">High</option>
+              <option value="3">Critical</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Scheduled Date</label>
+          <input id="insp-date" type="datetime-local" />
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="insp-notes" rows="2" placeholder="Inspection notes…"></textarea>
+        </div>
+        <div id="insp-alert"></div>
+        <button class="btn btn-primary" onclick="createInspection()">Schedule</button>
+        <button class="btn" style="margin-left:8px;background:var(--gray-100)" onclick="hideCreateInspectionForm()">Cancel</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Inspection List
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="loadInspections()">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="inspections-table"><div class="empty-state loading">Loading inspections…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RISK SCORING -->
+  <div id="tab-risk" class="tab-content">
+    <div class="section-title">⚠ Risk Scoring</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">Calculate Risk Score</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Property ID</label>
+            <input id="risk-property-id" type="text" placeholder="11111111-1111-1111-1111-111111111111" />
+          </div>
+          <div class="form-group">
+            <label>Inspection ID</label>
+            <input id="risk-inspection-id" type="text" placeholder="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Structural Condition Score (0–100)</label>
+            <input id="risk-structural" type="number" value="75" min="0" max="100" />
+          </div>
+          <div class="form-group">
+            <label>Year Built</label>
+            <input id="risk-year" type="number" value="1990" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Previous Damage Score (0–100)</label>
+            <input id="risk-damage" type="number" value="80" min="0" max="100" />
+          </div>
+          <div class="form-group">
+            <label>Maintenance Score (0–100)</label>
+            <input id="risk-maintenance" type="number" value="70" min="0" max="100" />
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calculateRisk()">Calculate Risk Score</button>
+        <div id="risk-result" style="margin-top:20px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        Recent Risk Scores
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="loadRiskScores()">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="risk-table"><div class="empty-state loading">Loading risk scores…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENTS -->
+  <div id="tab-documents" class="tab-content">
+    <div class="section-title">📄 Documents</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">Generate Report</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Property ID</label>
+            <input id="doc-property-id" type="text" placeholder="11111111-1111-1111-1111-111111111111" />
+          </div>
+          <div class="form-group">
+            <label>Report Type</label>
+            <select id="doc-type">
+              <option value="compliance">Compliance Report</option>
+              <option value="inspection">Inspection Report</option>
+            </select>
+          </div>
+        </div>
+        <div id="doc-alert"></div>
+        <button class="btn btn-primary" onclick="generateDocument()">Generate Report</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        Generated Documents
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="loadDocuments()">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="documents-table"><div class="empty-state">Enter a Property ID above to load documents.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div id="tab-notifications" class="tab-content">
+    <div class="section-title">🔔 Notifications</div>
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-header">Send Notification</div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Recipient ID</label>
+            <input id="notif-recipient" type="text" value="owner-001" />
+          </div>
+          <div class="form-group">
+            <label>Channel</label>
+            <select id="notif-channel">
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="in_app">In-App</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input id="notif-subject" type="text" value="Property Inspection Update" />
+        </div>
+        <div class="form-group">
+          <label>Message</label>
+          <textarea id="notif-message" rows="3">Your property inspection has been completed. Please review the report.</textarea>
+        </div>
+        <button class="btn btn-primary" onclick="sendNotification()">Send Notification</button>
+        <div id="notif-alert" style="margin-top:12px"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        Notification History
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="loadNotifications()">↻ Refresh</button>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="notifications-table"><div class="empty-state loading">Loading notifications…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SWAGGER LINKS -->
+  <div id="tab-swagger" class="tab-content">
+    <div class="section-title">📖 API Documentation</div>
+    <div class="services-grid">
+      <a href="http://localhost:5001" target="_blank" style="text-decoration:none">
+        <div class="service-card" style="cursor:pointer">
+          <div class="icon">🏠</div>
+          <h3>Property Service</h3>
+          <div class="url">localhost:5001</div>
+        </div>
+      </a>
+      <a href="http://localhost:5002" target="_blank" style="text-decoration:none">
+        <div class="service-card" style="cursor:pointer">
+          <div class="icon">🔍</div>
+          <h3>Inspection Service</h3>
+          <div class="url">localhost:5002</div>
+        </div>
+      </a>
+      <a href="http://localhost:5003/swagger" target="_blank" style="text-decoration:none">
+        <div class="service-card" style="cursor:pointer">
+          <div class="icon">📄</div>
+          <h3>Document Service</h3>
+          <div class="url">localhost:5003/swagger</div>
+        </div>
+      </a>
+      <a href="http://localhost:5004/docs" target="_blank" style="text-decoration:none">
+        <div class="service-card" style="cursor:pointer">
+          <div class="icon">⚠</div>
+          <h3>Risk Scoring Service</h3>
+          <div class="url">localhost:5004/docs</div>
+        </div>
+      </a>
+      <a href="http://localhost:5005/docs" target="_blank" style="text-decoration:none">
+        <div class="service-card" style="cursor:pointer">
+          <div class="icon">🔔</div>
+          <h3>Notification Service</h3>
+          <div class="url">localhost:5005/docs</div>
+        </div>
+      </a>
+    </div>
+    <div class="card">
+      <div class="card-header">Service URLs</div>
+      <div class="card-body">
+        <table>
+          <tr><th>Service</th><th>URL</th><th>Type</th><th>Docs</th></tr>
+          <tr><td>Property Service</td><td>http://localhost:5001</td><td>.NET 10</td><td><a href="http://localhost:5001" target="_blank">Swagger UI</a></td></tr>
+          <tr><td>Inspection Service</td><td>http://localhost:5002</td><td>.NET 10 Minimal API</td><td><a href="http://localhost:5002" target="_blank">Swagger UI</a></td></tr>
+          <tr><td>Document Service</td><td>http://localhost:5003</td><td>.NET 10</td><td><a href="http://localhost:5003" target="_blank">Swagger UI</a></td></tr>
+          <tr><td>Risk Scoring Service</td><td>http://localhost:5004</td><td>Python FastAPI</td><td><a href="http://localhost:5004/docs" target="_blank">FastAPI Docs</a></td></tr>
+          <tr><td>Notification Service</td><td>http://localhost:5005</td><td>Python FastAPI</td><td><a href="http://localhost:5005/docs" target="_blank">FastAPI Docs</a></td></tr>
+          <tr><td>Demo Dashboard</td><td>http://localhost:8080</td><td>nginx</td><td>This page</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SERVICES = [
+  { name: "Property Service",    icon: "🏠", port: 5001, path: "/health",  color: "#dbeafe" },
+  { name: "Inspection Service",  icon: "🔍", port: 5002, path: "/health",  color: "#d1fae5" },
+  { name: "Document Service",    icon: "📄", port: 5003, path: "/health",  color: "#ede9fe" },
+  { name: "Risk Scoring",        icon: "⚠",  port: 5004, path: "/health",  color: "#fef3c7" },
+  { name: "Notification Service",icon: "🔔", port: 5005, path: "/health",  color: "#fce7f3" },
+];
+
+async function checkHealth(port, path) {
+  try {
+    const r = await fetch(`http://localhost:${port}${path}`, { signal: AbortSignal.timeout(3000) });
+    return r.ok ? "healthy" : "error";
+  } catch { return "error"; }
+}
+
+async function renderServices() {
+  const grid = document.getElementById("services-grid");
+  grid.innerHTML = SERVICES.map(s => `
+    <div class="service-card" style="background:${s.color}">
+      <div class="icon">${s.icon}</div>
+      <h3>${s.name}</h3>
+      <div style="margin-top:6px">
+        <span class="status-dot unknown" id="dot-${s.port}"></span>
+        <span id="status-${s.port}" style="font-size:0.75rem;color:#6b7280">Checking…</span>
+      </div>
+      <div class="url">:${s.port}</div>
+    </div>
+  `).join("");
+
+  await Promise.all(SERVICES.map(async s => {
+    const status = await checkHealth(s.port, s.path);
+    document.getElementById(`dot-${s.port}`).className = `status-dot ${status}`;
+    document.getElementById(`status-${s.port}`).textContent = status === "healthy" ? "Healthy" : "Offline";
+  }));
+}
+
+// ── Tab navigation ─────────────────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+  document.getElementById(`tab-${id}`).classList.add("active");
+  event.target.classList.add("active");
+  if (id === "properties")    loadProperties();
+  if (id === "inspections")   loadInspections();
+  if (id === "risk")          loadRiskScores();
+  if (id === "notifications") loadNotifications();
+}
+
+// ── Properties ─────────────────────────────────────────────────────────────
+async function loadProperties() {
+  const el = document.getElementById("properties-table");
+  el.innerHTML = '<div class="empty-state loading">Loading…</div>';
+  try {
+    const r = await fetch("http://localhost:5001/api/properties");
+    const data = await r.json();
+    const items = Array.isArray(data) ? data : (data.items || data.properties || []);
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No properties found.</div>'; return; }
+    el.innerHTML = `<table>
+      <tr><th>Reference</th><th>Address</th><th>City</th><th>Type</th><th>Est. Value</th><th>Status</th></tr>
+      ${items.map(p => `<tr>
+        <td><code>${p.propertyReference || p.reference || "—"}</code></td>
+        <td>${p.address}</td>
+        <td>${p.city}, ${p.state}</td>
+        <td>${typeLabel(p.type)}</td>
+        <td>$${Number(p.estimatedValue).toLocaleString()}</td>
+        <td>${statusBadge(p.status)}</td>
+      </tr>`).join("")}
+    </table>`;
+    document.getElementById("stat-properties").textContent = items.length;
+  } catch(e) { el.innerHTML = `<div class="empty-state" style="color:var(--danger)">Service unavailable: ${e.message}</div>`; }
+}
+
+function typeLabel(t) { return ["Residential","Commercial","Industrial","Land","Mixed Use"][t] || t; }
+function statusBadge(s) {
+  const labels = ["Available","Sold","Under Contract","Rented","Under Construction","Under Inspection"];
+  return `<span style="padding:2px 8px;background:var(--gray-100);border-radius:9999px;font-size:0.75rem">${labels[s] || s}</span>`;
+}
+
+function showCreatePropertyForm()  { document.getElementById("create-property-form").style.display = "block"; }
+function hideCreatePropertyForm()  { document.getElementById("create-property-form").style.display = "none"; }
+
+async function createProperty() {
+  const body = {
+    address: document.getElementById("prop-address").value,
+    city: document.getElementById("prop-city").value,
+    state: document.getElementById("prop-state").value,
+    postalCode: document.getElementById("prop-postal").value,
+    country: document.getElementById("prop-country").value,
+    type: parseInt(document.getElementById("prop-type").value),
+    yearBuilt: parseInt(document.getElementById("prop-year").value),
+    squareFootage: parseFloat(document.getElementById("prop-sqft").value),
+    estimatedValue: parseFloat(document.getElementById("prop-value").value),
+    ownerId: document.getElementById("prop-owner").value,
+    bedrooms: 3, bathrooms: 2
+  };
+  const alertEl = document.getElementById("prop-alert");
+  try {
+    const r = await fetch("http://localhost:5001/api/properties", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok) {
+      alertEl.innerHTML = `<div class="alert alert-success">✓ Property created: ${data.propertyReference}</div>`;
+      setTimeout(() => { hideCreatePropertyForm(); loadProperties(); }, 1500);
+    } else {
+      alertEl.innerHTML = `<div class="alert alert-error">Error: ${JSON.stringify(data)}</div>`;
+    }
+  } catch(e) { alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+// ── Inspections ────────────────────────────────────────────────────────────
+async function loadInspections() {
+  const el = document.getElementById("inspections-table");
+  el.innerHTML = '<div class="empty-state loading">Loading…</div>';
+  try {
+    const r = await fetch("http://localhost:5002/api/inspections");
+    const data = await r.json();
+    const items = Array.isArray(data) ? data : (data.items || []);
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No inspections found.</div>'; return; }
+    el.innerHTML = `<table>
+      <tr><th>Inspector</th><th>Property</th><th>Type</th><th>Status</th><th>Scheduled</th><th>Score</th></tr>
+      ${items.map(i => `<tr>
+        <td>${i.inspectorName}</td>
+        <td><code style="font-size:0.75rem">${(i.propertyId||"").substring(0,8)}…</code></td>
+        <td>${inspTypeLabel(i.type)}</td>
+        <td>${inspStatusBadge(i.status)}</td>
+        <td>${new Date(i.scheduledDate).toLocaleDateString()}</td>
+        <td>${i.overallConditionScore ? `<strong>${i.overallConditionScore}/100</strong>` : "—"}</td>
+      </tr>`).join("")}
+    </table>`;
+    document.getElementById("stat-inspections").textContent = items.length;
+  } catch(e) { el.innerHTML = `<div class="empty-state" style="color:var(--danger)">Service unavailable: ${e.message}</div>`; }
+}
+
+function inspTypeLabel(t) { return ["Routine","Pre-Purchase","Annual","Insurance","Compliance","Emergency"][t] || t; }
+function inspStatusBadge(s) {
+  const c = ["#dbeafe","#fef3c7","#d1fae5","#fee2e2","#fce7f3"][s] || "#f3f4f6";
+  const l = ["Scheduled","In Progress","Completed","Cancelled","Failed"][s] || s;
+  return `<span style="padding:2px 8px;background:${c};border-radius:9999px;font-size:0.75rem">${l}</span>`;
+}
+
+function showCreateInspectionForm()  { document.getElementById("create-inspection-form").style.display = "block"; }
+function hideCreateInspectionForm()  { document.getElementById("create-inspection-form").style.display = "none"; }
+
+async function createInspection() {
+  const body = {
+    propertyId: document.getElementById("insp-property-id").value,
+    propertyReference: document.getElementById("insp-prop-ref").value,
+    inspectorId: document.getElementById("insp-inspector-id").value,
+    inspectorName: document.getElementById("insp-inspector-name").value,
+    type: parseInt(document.getElementById("insp-type").value),
+    priority: parseInt(document.getElementById("insp-priority").value),
+    scheduledDate: document.getElementById("insp-date").value || new Date().toISOString(),
+    notes: document.getElementById("insp-notes").value
+  };
+  const alertEl = document.getElementById("insp-alert");
+  try {
+    const r = await fetch("http://localhost:5002/api/inspections", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok || r.status === 201) {
+      alertEl.innerHTML = `<div class="alert alert-success">✓ Inspection scheduled: ${data.id}</div>`;
+      setTimeout(() => { hideCreateInspectionForm(); loadInspections(); }, 1500);
+    } else {
+      alertEl.innerHTML = `<div class="alert alert-error">Error: ${JSON.stringify(data)}</div>`;
+    }
+  } catch(e) { alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+// ── Risk Scoring ───────────────────────────────────────────────────────────
+async function calculateRisk() {
+  const body = {
+    property_id: document.getElementById("risk-property-id").value || "demo-property",
+    inspection_id: document.getElementById("risk-inspection-id").value || "demo-inspection",
+    inspection_data: {
+      structural_condition: { score: parseInt(document.getElementById("risk-structural").value) },
+      previous_damage: { score: parseInt(document.getElementById("risk-damage").value) },
+      maintenance_history: { score: parseInt(document.getElementById("risk-maintenance").value) },
+      location: {}
+    },
+    property_details: {
+      year_built: parseInt(document.getElementById("risk-year").value),
+      type: "residential"
+    }
+  };
+  const el = document.getElementById("risk-result");
+  el.innerHTML = '<div class="empty-state loading">Calculating…</div>';
+  try {
+    const r = await fetch("http://localhost:5004/api/risk/score", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    const badgeClass = data.risk_score >= 80 ? "risk-low" : data.risk_score >= 60 ? "risk-medium" : data.risk_score >= 40 ? "risk-high" : "risk-critical";
+    el.innerHTML = `
+      <div style="padding:16px;background:var(--gray-50);border-radius:8px;border:1px solid var(--gray-200)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="font-size:2.5rem;font-weight:700;color:var(--primary)">${data.risk_score}</div>
+          <div>
+            <div><span class="risk-badge ${badgeClass}">${data.risk_category}</span></div>
+            <div style="font-size:0.8rem;color:#6b7280;margin-top:4px">Overall Risk Score / 100</div>
+          </div>
+        </div>
+        <strong>Recommendations:</strong>
+        <ul style="margin:8px 0 0 20px;font-size:0.875rem">
+          ${data.recommendations.map(r => `<li>${r}</li>`).join("")}
+        </ul>
+      </div>`;
+    loadRiskScores();
+  } catch(e) { el.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function loadRiskScores() {
+  const el = document.getElementById("risk-table");
+  try {
+    const r = await fetch("http://localhost:5004/api/risk/scores");
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No risk scores yet.</div>'; return; }
+    el.innerHTML = `<table>
+      <tr><th>Property ID</th><th>Score</th><th>Category</th><th>Calculated</th></tr>
+      ${items.map(s => {
+        const cls = s.risk_score >= 80 ? "risk-low" : s.risk_score >= 60 ? "risk-medium" : s.risk_score >= 40 ? "risk-high" : "risk-critical";
+        return `<tr>
+          <td><code style="font-size:0.75rem">${(s.property_id||"").substring(0,12)}…</code></td>
+          <td><strong>${s.risk_score}</strong></td>
+          <td><span class="risk-badge ${cls}">${s.risk_category}</span></td>
+          <td>${new Date(s.calculated_at).toLocaleString()}</td>
+        </tr>`;
+      }).join("")}
+    </table>`;
+    document.getElementById("stat-riskscores").textContent = items.length;
+  } catch(e) { el.innerHTML = `<div class="empty-state" style="color:var(--danger)">${e.message}</div>`; }
+}
+
+// ── Documents ──────────────────────────────────────────────────────────────
+async function generateDocument() {
+  const propertyId = document.getElementById("doc-property-id").value;
+  const type = document.getElementById("doc-type").value;
+  const alertEl = document.getElementById("doc-alert");
+  if (!propertyId) { alertEl.innerHTML = '<div class="alert alert-error">Enter a Property ID</div>'; return; }
+
+  const url = type === "compliance"
+    ? "http://localhost:5003/api/documents/compliance-report"
+    : "http://localhost:5003/api/documents/generate-inspection-report";
+
+  const body = type === "compliance"
+    ? { propertyId, reportType: "Compliance" }
+    : { propertyId, inspectionId: "00000000-0000-0000-0000-000000000001", reportType: "InspectionReport" };
+
+  alertEl.innerHTML = '<div class="empty-state loading">Generating…</div>';
+  try {
+    const r = await fetch(url, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const data = await r.json();
+    if (r.ok || r.status === 201) {
+      alertEl.innerHTML = `<div class="alert alert-success">✓ Document generated: ${data.id}</div>`;
+      loadDocuments(propertyId);
+    } else {
+      alertEl.innerHTML = `<div class="alert alert-error">${JSON.stringify(data)}</div>`;
+    }
+  } catch(e) { alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function loadDocuments(propertyId) {
+  const pid = propertyId || document.getElementById("doc-property-id").value;
+  if (!pid) return;
+  const el = document.getElementById("documents-table");
+  el.innerHTML = '<div class="empty-state loading">Loading…</div>';
+  try {
+    const r = await fetch(`http://localhost:5003/api/documents/property/${pid}`);
+    const items = await r.json();
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No documents for this property.</div>'; return; }
+    el.innerHTML = `<table>
+      <tr><th>Title</th><th>Type</th><th>Format</th><th>Status</th><th>Created</th><th>Action</th></tr>
+      ${items.map(d => `<tr>
+        <td>${d.title}</td>
+        <td>${docTypeLabel(d.type)}</td>
+        <td>${docFormatLabel(d.format)}</td>
+        <td>${d.status === 2 ? "✓ Ready" : "Pending"}</td>
+        <td>${new Date(d.createdAt).toLocaleDateString()}</td>
+        <td><a href="http://localhost:5003/api/documents/${d.id}/download" target="_blank" class="btn btn-sm btn-primary">Download</a></td>
+      </tr>`).join("")}
+    </table>`;
+  } catch(e) { el.innerHTML = `<div class="empty-state" style="color:var(--danger)">${e.message}</div>`; }
+}
+
+function docTypeLabel(t) { return ["Compliance","Inspection","Risk Assessment","Summary","Insurance"][t] || t; }
+function docFormatLabel(f) { return ["PDF","Word","Excel","HTML","JSON"][f] || f; }
+
+// ── Notifications ─────────────────────────────────────────────────────────
+async function sendNotification() {
+  const body = {
+    recipient_id: document.getElementById("notif-recipient").value,
+    subject: document.getElementById("notif-subject").value,
+    message: document.getElementById("notif-message").value,
+    channel: document.getElementById("notif-channel").value
+  };
+  const alertEl = document.getElementById("notif-alert");
+  try {
+    const r = await fetch("http://localhost:5005/api/notifications", {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok || r.status === 201) {
+      alertEl.innerHTML = `<div class="alert alert-success">✓ Notification sent: ${data.id}</div>`;
+      loadNotifications();
+    } else {
+      alertEl.innerHTML = `<div class="alert alert-error">${JSON.stringify(data)}</div>`;
+    }
+  } catch(e) { alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function loadNotifications() {
+  const el = document.getElementById("notifications-table");
+  try {
+    const r = await fetch("http://localhost:5005/api/notifications");
+    const data = await r.json();
+    const items = data.items || [];
+    if (!items.length) { el.innerHTML = '<div class="empty-state">No notifications yet.</div>'; return; }
+    el.innerHTML = `<table>
+      <tr><th>ID</th><th>Recipient</th><th>Subject</th><th>Channel</th><th>Status</th><th>Sent</th></tr>
+      ${items.map(n => `<tr>
+        <td><code style="font-size:0.75rem">${n.id}</code></td>
+        <td>${n.recipient_id}</td>
+        <td>${n.subject}</td>
+        <td>${n.channel}</td>
+        <td>${n.status === "sent" ? '<span style="color:var(--success)">✓ Sent</span>' : n.status}</td>
+        <td>${n.sent_at ? new Date(n.sent_at).toLocaleString() : "—"}</td>
+      </tr>`).join("")}
+    </table>`;
+    document.getElementById("stat-notifications").textContent = items.length;
+  } catch(e) { el.innerHTML = `<div class="empty-state" style="color:var(--danger)">${e.message}</div>`; }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderServices();
+// Pre-fill inspection date with a future datetime
+const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+const dateInput = document.getElementById("insp-date");
+if (dateInput) dateInput.value = futureDate.toISOString().slice(0,16);
+</script>
+</body>
+</html>
