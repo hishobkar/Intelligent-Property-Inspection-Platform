@@ -2,33 +2,62 @@
 
 An enterprise-grade, event-driven microservices solution for property inspection and risk scoring.
 
+## Quick Start (Demo Mode — no Azure required)
+
+Runs fully locally with SQLite and in-memory stores. Only Docker Desktop is required.
+
+```bash
+# Clone and start everything
+git clone https://github.com/your-repo/intelligent-property-inspection.git
+cd intelligent-property-inspection
+docker compose up -d
+```
+
+Then open the demo dashboard in your browser:
+- **Demo Dashboard**: http://localhost:8080
+- **Property Service** (Swagger): http://localhost:5001
+- **Inspection Service** (Swagger): http://localhost:5002
+- **Document Service** (Swagger): http://localhost:5003
+- **Risk Scoring Service** (FastAPI Docs): http://localhost:5004/docs
+- **Notification Service** (FastAPI Docs): http://localhost:5005/docs
+
+To stop: `docker compose down`
+
+> **Alternative** (Windows, without Docker for .NET services):
+> ```powershell
+> .\scripts\start-demo.ps1
+> ```
+> Requires .NET 10 SDK + Docker Desktop.
+
+---
+
 ## Architecture Overview
 
 The platform consists of five microservices:
 
-1. **Property Service** (ASP.NET Core 9) - Manages property records and publishes events
-2. **Inspection Service** (ASP.NET Core 9 Minimal API) - Handles property inspections and photo uploads
-3. **Risk Scoring Service** (Python FastAPI) - Calculates risk scores based on inspection data
-4. **Document Service** (ASP.NET Core 9) - Generates compliance reports and documents
+1. **Property Service** (ASP.NET Core 10) - Manages property records and publishes events
+2. **Inspection Service** (ASP.NET Core 10 Minimal API) - Handles property inspections
+3. **Document Service** (ASP.NET Core 10) - Generates compliance reports (HTML)
+4. **Risk Scoring Service** (Python FastAPI) - Calculates risk scores based on inspection data
 5. **Notification Service** (Python FastAPI) - Sends notifications based on events
 
 ## Key Features
 
-- **Event-Driven Architecture**: All services communicate asynchronously via Azure Service Bus
-- **CQRS Pattern**: Separate commands and queries for optimal performance
-- **Clean Architecture**: Domain-centric design with clear separation of concerns
+- **Demo Mode**: Runs fully locally without any cloud dependencies (SQLite + in-memory stores)
+- **Event-Driven Architecture**: Services publish domain events; pluggable event bus (NoOp in demo, Azure Service Bus in production)
+- **CQRS Pattern**: Separate commands and queries via MediatR for optimal performance
+- **Clean Architecture**: Domain-centric design with clear separation of concerns (Domain / Application / Infrastructure / API)
 - **OpenTelemetry**: Distributed tracing and metrics collection
-- **Azure Integration**: Fully integrated with Azure services including AKS, SQL, Cosmos DB, and Blob Storage
-- **Security**: JWT authentication with Azure AD, Managed Identity, and Key Vault
-- **Observability**: Application Insights, distributed logging, and health checks
+- **Azure-Ready**: Configurable for Azure Service Bus, Cosmos DB, SQL Server, and Blob Storage via environment variables
+- **Observability**: Health check endpoints on all services, structured logging, and distributed tracing
 - **Infrastructure as Code**: Terraform for Azure resources, Helm charts for Kubernetes
 
 ## Technology Stack
 
 ### Backend Services
-- .NET 9 (Property, Inspection, Document services)
+- .NET 10 (Property, Inspection, Document services)
 - Python 3.11 (Risk Scoring, Notification services)
-- ASP.NET Core 9 Web API & Minimal API
+- ASP.NET Core 10 Web API & Minimal API
 - FastAPI (Python)
 - Entity Framework Core
 - MediatR (CQRS)
@@ -58,15 +87,31 @@ The platform consists of five microservices:
 
 ### Prerequisites
 
-- .NET 9 SDK
+**Demo mode (no Azure):**
+- Docker Desktop
+
+**Full production mode:**
+- .NET 10 SDK
 - Python 3.11+
 - Docker Desktop
-- Azure CLI
-- Kubectl
-- Helm
-- Terraform
+- Azure CLI, Kubectl, Helm, Terraform
 
-### Local Development
+### Local Demo (Docker Compose)
+
+```bash
+# Start all services
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
+```
+
+Seed data is loaded automatically: 3 demo properties and 2 inspections are available on first start.
+
+### Local Development (.NET services without Docker)
 
 1. Clone the repository:
 ```bash
